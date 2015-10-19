@@ -81,7 +81,8 @@ static Future<Nothing> _checkError(const string& cmd, const Subprocess& s)
     CHECK_SOME(s.err());
     return io::read(s.err().get())
       .then(lambda::bind(failure<Nothing>, cmd, status.get(), lambda::_1));
-  }
+  }w
+  dfdf
 
   return Nothing();
 }
@@ -358,6 +359,58 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
   return Docker::Image(result);
 }
 
+
+/*
+ * MY BAG:
+ *
+ */
+//must call RM after!!
+Future<Nothing> Docker::checkpoint(
+        const string& containerName,
+        const string& imageDir)
+{
+    const string cmd =
+            path + " -H " + socket + " checkpoint --image-dir="
+            + imageDir + " " + containerName;
+
+    VLOG(1) << "Running " << cmd;
+
+    Try<Subprocess> s = subprocess(
+            cmd,
+            Subprocess::PATH("/dev/null"),
+            Subprocess::PATH("/dev/null"),
+            Subprocess::PIPE());
+
+    if (s.isError()) {
+        return Failure(s.error());
+    }
+
+    return checkError(cmd, s.get());
+}
+
+//MUST CALL CREATE BEFORE!
+Future<Nothing> Docker::restore(
+        const string& containerName,
+        const string& imageDir)
+{
+    const string cmd =
+            path + " -H " + socket + " restore --image-dir="
+            + imageDir + " " + containerName;
+
+    VLOG(1) << "Running " << cmd;
+
+    Try<Subprocess> s = subprocess(
+            cmd,
+            Subprocess::PATH("/dev/null"),
+            Subprocess::PATH("/dev/null"),
+            Subprocess::PIPE());
+
+    if (s.isError()) {
+        return Failure(s.error());
+    }
+
+    return checkError(cmd, s.get());
+}
 
 Future<Nothing> Docker::run(
     const ContainerInfo& containerInfo,
