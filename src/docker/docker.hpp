@@ -130,6 +130,19 @@ public:
       const Duration& timeout = Seconds(0),
       bool remove = false) const;
 
+    /*
+     * my stuff
+     */
+    // Performs 'docker checkpoint --image-dir=imageDir CONTAINER'.
+    virtual process::Future<Nothing> checkpoint(
+            const string& containerName,
+            const string& imageDir) const;
+
+    // Performs 'docker restore --image-dir=imageDir CONTAINER'.
+    virtual process::Future<Nothing> restore(
+            const string& containerName,
+            const string& imageDir) const;
+
   // Performs 'docker rm (-f) CONTAINER'.
   virtual process::Future<Nothing> rm(
       const std::string& containerName,
