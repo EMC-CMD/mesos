@@ -366,7 +366,7 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
 //must call RM after!!
 Future<Nothing> Docker::checkpoint(
         const string& containerName,
-        const string& imageDir)
+        const string& imageDir) const
 {
     const string cmd =
             path + " -H " + socket + " checkpoint --image-dir="
@@ -390,7 +390,7 @@ Future<Nothing> Docker::checkpoint(
 //MUST CALL CREATE BEFORE!
 Future<Nothing> Docker::restore(
         const string& containerName,
-        const string& imageDir)
+        const string& imageDir) const
 {
     const string cmd =
             path + " -H " + socket + " restore --image-dir="
