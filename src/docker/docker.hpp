@@ -135,13 +135,13 @@ public:
      */
     // Performs 'docker checkpoint --image-dir=imageDir CONTAINER'.
     virtual process::Future<Nothing> checkpoint(
-            const string& containerName,
-            const string& imageDir) const;
+            const std::string& containerName,
+            const std::string& imageDir) const;
 
     // Performs 'docker restore --image-dir=imageDir CONTAINER'.
     virtual process::Future<Nothing> restore(
-            const string& containerName,
-            const string& imageDir) const;
+            const std::string& containerName,
+            const std::string& imageDir) const;
 
   // Performs 'docker rm (-f) CONTAINER'.
   virtual process::Future<Nothing> rm(

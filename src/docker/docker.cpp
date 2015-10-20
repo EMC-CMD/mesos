@@ -81,8 +81,7 @@ static Future<Nothing> _checkError(const string& cmd, const Subprocess& s)
     CHECK_SOME(s.err());
     return io::read(s.err().get())
       .then(lambda::bind(failure<Nothing>, cmd, status.get(), lambda::_1));
-  }w
-  dfdf
+  }
 
   return Nothing();
 }
