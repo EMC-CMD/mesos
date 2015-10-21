@@ -360,7 +360,7 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
 
 
 /*
- * MY BAG:
+ * MY BAG: TODO
  *
  */
 //must call RM after!!

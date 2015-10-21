@@ -1,5 +1,5 @@
 # First, ignore yourself.
-.gitignore
+#.gitignore
 
 # Files created by ./bootstrap.
 .clang-format
@@ -23,7 +23,9 @@ lt~obsolete.m4
 missing
 
 # Recommended build directory.
-/build/
+#/build/
+*.so
+.vagrant
 
 # Intermediate build artifacts
 *.la
