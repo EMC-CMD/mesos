@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: mesos.cli
+Version: 0.26.0
+Summary: Mesos command line utilities
+Home-page: http://pypi.python.org/pypi/mesos.cli
+Author: Apache Mesos
+Author-email: dev@mesos.apache.org
+License: Apache 2.0
+Description: UNKNOWN
+Keywords: mesos
+Platform: UNKNOWN

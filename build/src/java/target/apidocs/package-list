@@ -1,0 +1,5 @@
+org.apache.mesos
+org.apache.mesos.containerizer
+org.apache.mesos.state
+org.apache.mesos.v1
+org.apache.mesos.v1.scheduler
