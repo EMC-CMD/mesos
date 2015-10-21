@@ -35,3 +35,7 @@ missing
 .deps/
 .libs/
 *-stamp
+.cproject
+.project
+.settings/
+mesos.layout
