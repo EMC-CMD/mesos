@@ -1,7 +1,0 @@
-setup.py
-src/mesos/__init__.py
-src/mesos.egg-info/PKG-INFO
-src/mesos.egg-info/SOURCES.txt
-src/mesos.egg-info/dependency_links.txt
-src/mesos.egg-info/requires.txt
-src/mesos.egg-info/top_level.txt
