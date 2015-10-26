@@ -1509,35 +1509,6 @@ struct Framework
       totalUsedResources += task->resources();
       usedResources[task->slave_id()] += task->resources();
     }
-
-      /*
-       * MY BAG: TODO
-       */
-      //if task is a docker container && this is NOT a
-      // checkpoint/restore request, add it to map
-      if (task->has_container() &&
-              task->container()->has_docker()
-          && task->has_labels()){
-          Labels& labels = task->labels();
-          //scan labels
-          for (int i=0; i < labels.labels_size(); i++){
-              const Label& label = labels.labels(i);
-              if (label.has_key() && label.key() == "CONTAINER_ACTIONS"){
-                  if (label.has_value() && label.value() == "RUN_CONTAINER"){
-                      //do nothing
-                  } else if (label.has_value() &&
-                          label.value() == "CHECKPOINT_CONTAINER") {
-                      //allocate task to target slave
-                  } else if (label.has_value() &&
-                          label.value() == "RESTORE_CONTAINER") {
-                      //allocate task to target slave
-                  }
-              }
-          }
-          const ContainerInfo_DockerInfo& docker = task->container()->docker();
-
-          activeContainers.emplace(docker, task);
-      }
   }
 
   // Notification of task termination, for resource accounting.
@@ -1841,11 +1812,6 @@ struct Framework
   hashmap<TaskID, TaskInfo> pendingTasks;
 
   hashmap<TaskID, Task*> tasks;
-
-    /*
-     * MY BAG: TODO
-     */
-  hashmap<ContainerInfo_DockerInfo*, Task*> activeContainers;
 
   // NOTE: We use a shared pointer for Task because clang doesn't like
   // Boost's implementation of circular_buffer with Task (Boost
