@@ -164,6 +164,15 @@ public:
       if (taskType == "CHECKPOINT"){
         //TODO(ilackarms): determine how to do status update!
         //for now, always send TASK_FINISHED
+          run = docker->checkpoint(
+                 containerName,
+                 sandboxDirectory+"/"+containerName)
+               .onAny(defer(
+                 self(),
+                 &Self::reaped,
+                 driver,
+                 taskId,
+                 lambda::_1));
 
         // Delay sending TASK_RUNNING status update until we receive
         // inspect output.
@@ -200,6 +209,15 @@ public:
 
       } else if (taskType == "RESTORE"){
         //TODO(ilackarms): docker->restore
+          run = docker->restore(
+                          containerName,
+                          sandboxDirectory+"/"+containerName)
+                  .onAny(defer(
+                          self(),
+                          &Self::reaped,
+                          driver,
+                          taskId,
+                          lambda::_1));
 
         // Delay sending TASK_RUNNING status update until we receive
         // inspect output.
@@ -222,7 +240,7 @@ public:
                label->set_value(container.ipAddress.get());
 
                NetworkInfo* networkInfo =
-                       status.mutable_container_status()->add_network_infos();
+                 status.mutable_container_status()->add_network_infos();
                networkInfo->set_ip_address(container.ipAddress.get());
                 }
                 driver->sendStatusUpdate(status);
@@ -278,7 +296,7 @@ public:
                label->set_value(container.ipAddress.get());
 
                NetworkInfo* networkInfo =
-                       status.mutable_container_status()->add_network_infos();
+                 status.mutable_container_status()->add_network_infos();
                networkInfo->set_ip_address(container.ipAddress.get());
                 }
                 driver->sendStatusUpdate(status);
