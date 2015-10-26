@@ -131,7 +131,7 @@ public:
       bool remove = false) const;
 
   /*
-   * my stuff
+   * TODO: MY BAG
    */
   // Performs 'docker checkpoint --image-dir=imageDir CONTAINER'.
   virtual process::Future<Nothing> checkpoint(

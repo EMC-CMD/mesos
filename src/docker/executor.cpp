@@ -119,7 +119,7 @@ public:
       status.mutable_task_id()->CopyFrom(task.task_id());
       status.set_state(TASK_FAILED);
       status.set_message(
-          "Attempted to run multiple tasks using a \"docker\" executor");
+        "Attempted to run multiple tasks using a \"docker\" executor");
 
       driver->sendStatusUpdate(status);
       return;
@@ -134,56 +134,162 @@ public:
 
     CHECK(task.container().type() == ContainerInfo::DOCKER);
 
-    // We're adding task and executor resources to launch docker since
-    // the DockerContainerizer updates the container cgroup limits
-    // directly and it expects it to be the sum of both task and
-    // executor resources. This does leave to a bit of unaccounted
-    // resources for running this executor, but we are assuming
-    // this is just a very small amount of overcommit.
-    run = docker->run(
-        task.container(),
-        task.command(),
-        containerName,
-        sandboxDirectory,
-        mappedDirectory,
-        task.resources() + task.executor().resources(),
-        None(),
-        path::join(sandboxDirectory, "stdout"),
-        path::join(sandboxDirectory, "stderr"))
-      .onAny(defer(
-        self(),
-        &Self::reaped,
-        driver,
-        taskId,
-        lambda::_1));
 
-    // Delay sending TASK_RUNNING status update until we receive
-    // inspect output.
-    inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
-      .then(defer(self(), [=](const Docker::Container& container) {
-        if (!killed) {
-          TaskStatus status;
-          status.mutable_task_id()->CopyFrom(taskId);
-          status.set_state(TASK_RUNNING);
-          status.set_data(container.output);
-          if (container.ipAddress.isSome()) {
-            // TODO(karya): Deprecated -- Remove after 0.25.0 has shipped.
-            Label* label = status.mutable_labels()->add_labels();
-            label->set_key("Docker.NetworkSettings.IPAddress");
-            label->set_value(container.ipAddress.get());
-
-            NetworkInfo* networkInfo =
-              status.mutable_container_status()->add_network_infos();
-            networkInfo->set_ip_address(container.ipAddress.get());
-          }
-          driver->sendStatusUpdate(status);
+      /*
+ * TODO: MY BAG
+ */
+      //if task type is RUN do nothing
+      //if task type is CHECKPOINT do x
+      //if task type is RESTORE do y
+      string taskType = "RUN";
+      if (task.has_labels()){
+        const Labels& labels = task.labels();
+        for (int i = 0; i < labels.labels_size(); i++){
+            const Label& label = labels.labels(i);
+            if (label.has_key() && label.has_value()){
+                const string& key = label.key();
+                const string& value = label.value();
+                if (strcmp(key.c_str(), "TASK_TYPE") == 0 &&
+                strcmp(value.c_str(), "CHECKPOINT_TASK") == 0){
+               taskType = "CHECKPOINT";
+                }
+                else if (strcmp(key.c_str(), "TASK_TYPE") == 0 &&
+                strcmp(value.c_str(), "RESTORE_TASK") == 0){
+               taskType = "RESTORE";
+                }
+            }
         }
+      }
 
-        return Nothing();
-      }));
+      if (taskType == "CHECKPOINT"){
+        //TODO(ilackarms): determine how to do status update!
+        //for now, always send TASK_FINISHED
 
-    inspect.onReady(
-        defer(self(), &Self::launchHealthCheck, containerName, task));
+        // Delay sending TASK_RUNNING status update until we receive
+        // inspect output.
+        inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
+              .then(defer(self(), [=](const Docker::Container& container) {
+                if (!killed) {
+               TaskStatus status;
+               status.mutable_task_id()->CopyFrom(taskId);
+               status.set_state(TASK_FINISHED);
+               status.set_data(container.output);
+
+               Label* checkpoint_label = status.mutable_labels()->add_labels();
+               checkpoint_label->set_key("DockerContainer.State");
+               checkpoint_label->set_value("Checkpointed");
+
+               if (container.ipAddress.isSome()) {
+                // TODO(karya): Deprecated -- Remove after 0.25.0 has shipped.
+                Label* label = status.mutable_labels()->add_labels();
+                label->set_key("Docker.NetworkSettings.IPAddress");
+                label->set_value(container.ipAddress.get());
+
+                NetworkInfo* networkInfo =
+                 status.mutable_container_status()->add_network_infos();
+                networkInfo->set_ip_address(container.ipAddress.get());
+               }
+               driver->sendStatusUpdate(status);
+                }
+
+                return Nothing();
+              }));
+
+        inspect.onReady(
+              defer(self(), &Self::launchHealthCheck, containerName, task));
+
+      } else if (taskType == "RESTORE"){
+        //TODO(ilackarms): docker->restore
+
+        // Delay sending TASK_RUNNING status update until we receive
+        // inspect output.
+        inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
+              .then(defer(self(), [=](const Docker::Container& container) {
+                if (!killed) {
+               TaskStatus status;
+               status.mutable_task_id()->CopyFrom(taskId);
+                 status.set_state(TASK_RUNNING);
+                status.set_data(container.output);
+
+                Label* checkpoint_label = status.mutable_labels()->add_labels();
+                checkpoint_label->set_key("DockerContainer.State");
+                checkpoint_label->set_value("Restored");
+
+                if (container.ipAddress.isSome()) {
+               // TODO(karya): Deprecated -- Remove after 0.25.0 has shipped.
+               Label* label = status.mutable_labels()->add_labels();
+               label->set_key("Docker.NetworkSettings.IPAddress");
+               label->set_value(container.ipAddress.get());
+
+               NetworkInfo* networkInfo =
+                       status.mutable_container_status()->add_network_infos();
+               networkInfo->set_ip_address(container.ipAddress.get());
+                }
+                driver->sendStatusUpdate(status);
+               }
+
+               return Nothing();
+                }));
+
+        inspect.onReady(
+                defer(self(), &Self::launchHealthCheck, containerName, task));
+      } else if (taskType == "RUN"){
+        // We're adding task and executor resources to launch docker since
+        // the DockerContainerizer updates the container cgroup limits
+        // directly and it expects it to be the sum of both task and
+        // executor resources. This does leave to a bit of unaccounted
+        // resources for running this executor, but we are assuming
+        // this is just a very small amount of overcommit.
+        run = docker->run(
+                task.container(),
+                task.command(),
+                containerName,
+                sandboxDirectory,
+                mappedDirectory,
+                task.resources() + task.executor().resources(),
+                None(),
+                path::join(sandboxDirectory, "stdout"),
+                path::join(sandboxDirectory, "stderr"))
+                .onAny(defer(
+                self(),
+                &Self::reaped,
+                driver,
+                taskId,
+                lambda::_1));
+
+        // Delay sending TASK_RUNNING status update until we receive
+        // inspect output.
+        inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
+                .then(defer(self(), [=](const Docker::Container& container) {
+               if (!killed) {
+                TaskStatus status;
+                status.mutable_task_id()->CopyFrom(taskId);
+                status.set_state(TASK_RUNNING);
+                status.set_data(container.output);
+
+                Label* checkpoint_label = status.mutable_labels()->add_labels();
+                checkpoint_label->set_key("DockerContainer.State");
+                checkpoint_label->set_value("Initial Run");
+
+                if (container.ipAddress.isSome()) {
+               // TODO(karya): Deprecated -- Remove after 0.25.0 has shipped.
+               Label* label = status.mutable_labels()->add_labels();
+               label->set_key("Docker.NetworkSettings.IPAddress");
+               label->set_value(container.ipAddress.get());
+
+               NetworkInfo* networkInfo =
+                       status.mutable_container_status()->add_network_infos();
+               networkInfo->set_ip_address(container.ipAddress.get());
+                }
+                driver->sendStatusUpdate(status);
+               }
+
+               return Nothing();
+                }));
+
+        inspect.onReady(
+                defer(self(), &Self::launchHealthCheck, containerName, task));
+      }
   }
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
@@ -261,45 +367,45 @@ private:
     stop.onAny(defer(self(), [=](const Future<Nothing>&) {
       inspect
         .after(DOCKER_INSPECT_TIMEOUT, [=](const Future<Nothing>&) {
-          inspect.discard();
-          return inspect;
+        inspect.discard();
+        return inspect;
         })
         .onAny(defer(self(), [=](const Future<Nothing>&) {
-          CHECK_SOME(driver);
-          TaskState state;
-          string message;
-          if (!stop.isReady()) {
-            state = TASK_FAILED;
-            message = "Unable to stop docker container, error: " +
-                      (stop.isFailed() ? stop.failure() : "future discarded");
-          } else if (killed) {
-            state = TASK_KILLED;
-          } else if (!run.isReady()) {
-            state = TASK_FAILED;
-            message = "Docker container run error: " +
-                      (run.isFailed() ?
-                       run.failure() : "future discarded");
-          } else {
-            state = TASK_FINISHED;
-          }
+        CHECK_SOME(driver);
+        TaskState state;
+        string message;
+        if (!stop.isReady()) {
+          state = TASK_FAILED;
+          message = "Unable to stop docker container, error: " +
+               (stop.isFailed() ? stop.failure() : "future discarded");
+        } else if (killed) {
+          state = TASK_KILLED;
+        } else if (!run.isReady()) {
+          state = TASK_FAILED;
+          message = "Docker container run error: " +
+               (run.isFailed() ?
+                run.failure() : "future discarded");
+        } else {
+          state = TASK_FINISHED;
+        }
 
-          TaskStatus taskStatus;
-          taskStatus.mutable_task_id()->CopyFrom(taskId);
-          taskStatus.set_state(state);
-          taskStatus.set_message(message);
-          if (killed && killedByHealthCheck) {
-            taskStatus.set_healthy(false);
-          }
+        TaskStatus taskStatus;
+        taskStatus.mutable_task_id()->CopyFrom(taskId);
+        taskStatus.set_state(state);
+        taskStatus.set_message(message);
+        if (killed && killedByHealthCheck) {
+          taskStatus.set_healthy(false);
+        }
 
-          driver.get()->sendStatusUpdate(taskStatus);
+        driver.get()->sendStatusUpdate(taskStatus);
 
-          // A hack for now ... but we need to wait until the status update
-          // is sent to the slave before we shut ourselves down.
-          // TODO(tnachen): Remove this hack and also the same hack in the
-          // command executor when we have the new HTTP APIs to wait until
-          // an ack.
-          os::sleep(Seconds(1));
-          driver.get()->stop();
+        // A hack for now ... but we need to wait until the status update
+        // is sent to the slave before we shut ourselves down.
+        // TODO(tnachen): Remove this hack and also the same hack in the
+        // command executor when we have the new HTTP APIs to wait until
+        // an ack.
+        os::sleep(Seconds(1));
+        driver.get()->stop();
         }));
     }));
   }
@@ -311,55 +417,55 @@ private:
 
       // Wrap the original health check command in "docker exec".
       if (healthCheck.has_command()) {
-          CommandInfo command = healthCheck.command();
+        CommandInfo command = healthCheck.command();
 
-          // "docker exec" require docker version greater than 1.3.0.
-          Try<Nothing> validateVersion =
-            docker->validateVersion(Version(1, 3, 0));
-          if (validateVersion.isError()) {
+        // "docker exec" require docker version greater than 1.3.0.
+        Try<Nothing> validateVersion =
+          docker->validateVersion(Version(1, 3, 0));
+        if (validateVersion.isError()) {
+          cerr << "Unable to launch health process: "
+               << validateVersion.error() << endl;
+          return;
+        }
+
+        vector<string> argv;
+        argv.push_back(docker->getPath());
+        argv.push_back("exec");
+        argv.push_back(containerName);
+
+        if (command.shell()) {
+          if (!command.has_value()) {
             cerr << "Unable to launch health process: "
-                 << validateVersion.error() << endl;
+                 << "Shell command is not specified." << endl;
             return;
           }
 
-          vector<string> argv;
-          argv.push_back(docker->getPath());
-          argv.push_back("exec");
-          argv.push_back(containerName);
-
-          if (command.shell()) {
-            if (!command.has_value()) {
-              cerr << "Unable to launch health process: "
-                   << "Shell command is not specified." << endl;
-              return;
-            }
-
-            argv.push_back("sh");
-            argv.push_back("-c");
-            argv.push_back("\"");
-            argv.push_back(command.value());
-            argv.push_back("\"");
-          } else {
-            if (!command.has_value()) {
-              cerr << "Unable to launch health process: "
-                   << "Executable path is not specified." << endl;
-              return;
-            }
-
-            argv.push_back(command.value());
-            foreach (const string& argument, command.arguments()) {
-              argv.push_back(argument);
-            }
+          argv.push_back("sh");
+          argv.push_back("-c");
+          argv.push_back("\"");
+          argv.push_back(command.value());
+          argv.push_back("\"");
+        } else {
+          if (!command.has_value()) {
+            cerr << "Unable to launch health process: "
+                 << "Executable path is not specified." << endl;
+            return;
           }
 
-          command.set_shell(true);
-          command.clear_arguments();
-          command.set_value(strings::join(" ", argv));
-          healthCheck.mutable_command()->CopyFrom(command);
+          argv.push_back(command.value());
+          foreach (const string& argument, command.arguments()) {
+            argv.push_back(argument);
+          }
+        }
+
+        command.set_shell(true);
+        command.clear_arguments();
+        command.set_value(strings::join(" ", argv));
+        healthCheck.mutable_command()->CopyFrom(command);
       } else {
-          cerr << "Unable to launch health process: "
-               << "Only command health check is supported now." << endl;
-          return;
+        cerr << "Unable to launch health process: "
+             << "Only command health check is supported now." << endl;
+        return;
       }
 
       JSON::Object json = JSON::Protobuf(healthCheck);
@@ -378,22 +484,22 @@ private:
 
       Try<Subprocess> healthProcess =
         process::subprocess(
-          path,
-          argv,
-          // Intentionally not sending STDIN to avoid health check
-          // commands that expect STDIN input to block.
-          Subprocess::PATH("/dev/null"),
-          Subprocess::FD(STDOUT_FILENO),
-          Subprocess::FD(STDERR_FILENO));
+        path,
+        argv,
+        // Intentionally not sending STDIN to avoid health check
+        // commands that expect STDIN input to block.
+        Subprocess::PATH("/dev/null"),
+        Subprocess::FD(STDOUT_FILENO),
+        Subprocess::FD(STDERR_FILENO));
 
       if (healthProcess.isError()) {
         cerr << "Unable to launch health process: "
-             << healthProcess.error() << endl;
+           << healthProcess.error() << endl;
       } else {
         healthPid = healthProcess.get().pid();
 
         cout << "Health check process launched at pid: "
-             << stringify(healthPid) << endl;
+           << stringify(healthPid) << endl;
       }
     }
   }
@@ -449,11 +555,11 @@ public:
       const SlaveInfo& slaveInfo)
   {
     dispatch(process.get(),
-             &DockerExecutorProcess::registered,
-             driver,
-             executorInfo,
-             frameworkInfo,
-             slaveInfo);
+           &DockerExecutorProcess::registered,
+           driver,
+           executorInfo,
+           frameworkInfo,
+           slaveInfo);
   }
 
   virtual void reregistered(
@@ -461,9 +567,9 @@ public:
       const SlaveInfo& slaveInfo)
   {
     dispatch(process.get(),
-             &DockerExecutorProcess::reregistered,
-             driver,
-             slaveInfo);
+           &DockerExecutorProcess::reregistered,
+           driver,
+           slaveInfo);
   }
 
   virtual void disconnected(ExecutorDriver* driver)
@@ -484,9 +590,9 @@ public:
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data)
   {
     dispatch(process.get(),
-             &DockerExecutorProcess::frameworkMessage,
-             driver,
-             data);
+           &DockerExecutorProcess::frameworkMessage,
+           driver,
+           data);
   }
 
   virtual void shutdown(ExecutorDriver* driver)
@@ -573,7 +679,7 @@ int main(int argc, char** argv)
   const Option<string> envPath = os::getenv("MESOS_LAUNCHER_DIR");
   string path =
     envPath.isSome() ? envPath.get()
-                     : os::realpath(Path(argv[0]).dirname()).get();
+                 : os::realpath(Path(argv[0]).dirname()).get();
 
   mesos::internal::docker::DockerExecutor executor(
       process::Owned<Docker>(docker.get()),
