@@ -189,7 +189,7 @@ public:
                 if (!killed) {
                TaskStatus status;
                status.mutable_task_id()->CopyFrom(taskId);
-               status.set_state(TASK_FINISHED);
+               status.set_state(TASK_RUNNING);
                status.set_data(container.output);
 
                Label* checkpoint_label = status.mutable_labels()->add_labels();
