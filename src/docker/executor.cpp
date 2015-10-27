@@ -142,20 +142,28 @@ public:
       //if task type is CHECKPOINT do x
       //if task type is RESTORE do y
       string taskType = "RUN";
+      string& targetContainer;
       if (task.has_labels()){
+          cout << "Task has labels, reading labels..." << endl;
         const Labels& labels = task.labels();
         for (int i = 0; i < labels.labels_size(); i++){
             const Label& label = labels.labels(i);
             if (label.has_key() && label.has_value()){
                 const string& key = label.key();
                 const string& value = label.value();
-                if (strcmp(key.c_str(), "TASK_TYPE") == 0 &&
-                strcmp(value.c_str(), "CHECKPOINT_TASK") == 0){
-               taskType = "CHECKPOINT";
+                if (strcmp(key.c_str(), "CHECKPOINT_TASK") == 0){
+                    taskType = "CHECKPOINT";
+                    targetContainer = value;
+                    cout << "CHECKPOINT_TASK detected, "
+                        << "attempting to checkpoint container "
+                    << targetContainer << endl;
                 }
-                else if (strcmp(key.c_str(), "TASK_TYPE") == 0 &&
-                strcmp(value.c_str(), "RESTORE_TASK") == 0){
-               taskType = "RESTORE";
+                else if (strcmp(key.c_str(), "RESTORE_TASK")){
+                    taskType = "RESTORE";
+                    targetContainer = value;
+                    cout << "RESTORE_TASK detected, "
+                    <<"attempting to restore container "
+                    << targetContainer << endl;
                 }
             }
         }
@@ -165,7 +173,7 @@ public:
         //TODO(ilackarms): determine how to do status update!
         //for now, always send TASK_FINISHED
           run = docker->checkpoint(
-                 containerName,
+                 targetContainer,
                  sandboxDirectory+"/"+containerName)
                .onAny(defer(
                  self(),
@@ -210,7 +218,7 @@ public:
       } else if (taskType == "RESTORE"){
         //TODO(ilackarms): docker->restore
           run = docker->restore(
-                          containerName,
+                          targetContainer,
                           sandboxDirectory+"/"+containerName)
                   .onAny(defer(
                           self(),

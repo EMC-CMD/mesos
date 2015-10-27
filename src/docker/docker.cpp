@@ -368,6 +368,10 @@ Future<Nothing> Docker::checkpoint(
         const string& containerName,
         const string& imageDir) const
 {
+    VLOG(1) << "Checkpointing container "
+    << containerName << " to image dir: " << imageDir;
+
+    mkdir(imageDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     const string cmd =
             path + " -H " + socket + " checkpoint --image-dir="
             + imageDir + " " + containerName;
@@ -392,6 +396,9 @@ Future<Nothing> Docker::restore(
         const string& containerName,
         const string& imageDir) const
 {
+    VLOG(1) << "Restoring container "
+    << containerName << " from image dir: " << imageDir;
+
     const string cmd =
             path + " -H " + socket + " restore --image-dir="
             + imageDir + " " + containerName;
@@ -407,6 +414,10 @@ Future<Nothing> Docker::restore(
     if (s.isError()) {
         return Failure(s.error());
     }
+
+    VLOG(1) << "Removing directory: " << checkpointDir;
+
+    rmdir(checkpointDir.c_str());
 
     return checkError(cmd, s.get());
 }
