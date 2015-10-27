@@ -117,8 +117,8 @@ Try<Docker*> Docker::create(
   if (hierarchy.isNone()) {
     delete docker;
     return Error("Failed to find a mounted cgroups hierarchy "
-                 "for the 'cpu' subsystem; you probably need "
-                 "to mount cgroups manually");
+         "for the 'cpu' subsystem; you probably need "
+         "to mount cgroups manually");
   }
 #endif // __linux__
 
@@ -193,15 +193,15 @@ Future<Version> Docker::__version(const Future<string>& output)
       string versionString = subParts.back();
       vector<string> components = strings::split(versionString, ".");
       if (components.size() > 3) {
-        components.erase(components.begin() + 3, components.end());
+    components.erase(components.begin() + 3, components.end());
       }
       versionString = strings::join(".", components);
 
       Try<Version> version = Version::parse(versionString);
 
       if (version.isError()) {
-        return Failure("Failed to parse docker version: " +
-                       version.error());
+    return Failure("Failed to parse docker version: " +
+               version.error());
       }
 
       return version;
@@ -227,8 +227,8 @@ Try<Nothing> Docker::validateVersion(const Version& minVersion) const
 
   if (version.get() < minVersion) {
     string msg = "Insufficient version '" + stringify(version.get()) +
-                 "' of Docker. Please upgrade to >=' " +
-                 stringify(minVersion) + "'";
+         "' of Docker. Please upgrade to >=' " +
+         stringify(minVersion) + "'";
     return Error(msg);
   }
 
@@ -310,8 +310,8 @@ Try<Docker::Container> Docker::Container::create(const string& output)
     return Error("Unable to find NetworkSettings.IPAddress in container");
   } else if (ipAddressValue.isError()) {
     return Error(
-        "Error finding NetworkSettings.Name in container: " +
-        ipAddressValue.error());
+    "Error finding NetworkSettings.Name in container: " +
+    ipAddressValue.error());
   }
 
   string ipAddress = ipAddressValue.get().value;
@@ -327,7 +327,7 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
 
   if (entrypoint.isError()) {
     return Error("Failed to find 'ContainerConfig.Entrypoint': " +
-                 entrypoint.error());
+         entrypoint.error());
 
   } else if (entrypoint.isNone()) {
     return Error("Unable to find 'ContainerConfig.Entrypoint'");
@@ -365,27 +365,107 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
  */
 //must call RM after!!
 Future<Nothing> Docker::checkpoint(
-        const string& containerName,
-        const string& imageDir) const
+    const string& containerName,
+    const string& imageDir) const
 {
     VLOG(1) << "Checkpointing container "
     << containerName << " to image dir: " << imageDir;
 
     mkdir(imageDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     const string cmd =
-            path + " -H " + socket + " checkpoint --image-dir="
-            + imageDir + " " + containerName;
+        path + " -H " + socket + " checkpoint --image-dir="
+        + imageDir + " " + containerName;
 
     VLOG(1) << "Running " << cmd;
 
     Try<Subprocess> s = subprocess(
-            cmd,
-            Subprocess::PATH("/dev/null"),
-            Subprocess::PATH("/dev/null"),
-            Subprocess::PIPE());
+        cmd,
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE());
 
     if (s.isError()) {
-        return Failure(s.error());
+    return Failure(s.error());
+    }
+
+    return checkError(cmd, s.get());
+}
+
+Future<Nothing> Docker::commit(
+    const string& containerName,
+    const string& imageName) const
+{
+    VLOG(1) << "Committing  existing container "
+    << containerName << " to image-id: " << imageName;
+
+    const string cmd =
+        path + " -H " + socket + " commit "
+        + containerName + " " + imageName;
+
+    VLOG(1) << "Running " << cmd;
+
+    Try<Subprocess> s = subprocess(
+        cmd,
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE());
+
+    if (s.isError()) {
+    return Failure(s.error());
+    }
+
+    return checkError(cmd, s.get());
+}
+
+Future<Nothing> Docker::save(
+    const string& containerName,
+    const string& imageDir) const
+{
+    VLOG(1) << "Saving image "
+    << containerName << " to image dir: " << imageDir;
+
+    mkdir(imageDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    const string cmd =
+        path + " -H " + socket + " checkpoint --image-dir="
+        + imageDir + " " + containerName;
+
+    VLOG(1) << "Running " << cmd;
+
+    Try<Subprocess> s = subprocess(
+        cmd,
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE());
+
+    if (s.isError()) {
+    return Failure(s.error());
+    }
+
+    return checkError(cmd, s.get());
+}
+
+Future<Nothing> Docker::load(
+    const string& containerName,
+    const string& imageDir) const
+{
+    VLOG(1) << "Checkpointing container "
+    << containerName << " to image dir: " << imageDir;
+
+    mkdir(imageDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    const string cmd =
+        path + " -H " + socket + " checkpoint --image-dir="
+        + imageDir + " " + containerName;
+
+    VLOG(1) << "Running " << cmd;
+
+    Try<Subprocess> s = subprocess(
+        cmd,
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE());
+
+    if (s.isError()) {
+    return Failure(s.error());
     }
 
     return checkError(cmd, s.get());
@@ -393,26 +473,26 @@ Future<Nothing> Docker::checkpoint(
 
 //MUST CALL CREATE BEFORE!
 Future<Nothing> Docker::restore(
-        const string& containerName,
-        const string& imageDir) const
+    const string& containerName,
+    const string& imageDir) const
 {
     VLOG(1) << "Restoring container "
     << containerName << " from image dir: " << imageDir;
 
     const string cmd =
-            path + " -H " + socket + " restore --image-dir="
-            + imageDir + " " + containerName;
+        path + " -H " + socket + " restore --image-dir="
+        + imageDir + " " + containerName;
 
     VLOG(1) << "Running " << cmd;
 
     Try<Subprocess> s = subprocess(
-            cmd,
-            Subprocess::PATH("/dev/null"),
-            Subprocess::PATH("/dev/null"),
-            Subprocess::PIPE());
+        cmd,
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE());
 
     if (s.isError()) {
-        return Failure(s.error());
+    return Failure(s.error());
     }
 
     VLOG(1) << "Removing directory: " << checkpointDir;
@@ -420,6 +500,257 @@ Future<Nothing> Docker::restore(
     rmdir(checkpointDir.c_str());
 
     return checkError(cmd, s.get());
+}
+
+
+//IMAGE MUST BE IMAGE CREATED BY CHECKPOINT!
+//DO THIS IN THE TASK (e.g. load < etc. etc.)
+Future<Nothing> Docker::create_container(
+    const ContainerInfo& containerInfo,
+    const CommandInfo& commandInfo,
+    const string& name,
+    const string& sandboxDirectory,
+    const string& mappedDirectory,
+    const Option<Resources>& resources,
+    const Option<map<string, string>>& env,
+    const Option<string>& stdoutPath,
+    const Option<string>& stderrPath) const
+{
+    if (!containerInfo.has_docker()) {
+    return Failure("No docker info found in container info");
+    }
+
+    const ContainerInfo::DockerInfo& dockerInfo = containerInfo.docker();
+
+    vector<string> argv;
+    argv.push_back(path);
+    argv.push_back("-H");
+    argv.push_back(socket);
+    argv.push_back("run");
+
+    if (dockerInfo.privileged()) {
+    argv.push_back("--privileged");
+    }
+
+    if (resources.isSome()) {
+    // TODO(yifan): Support other resources (e.g. disk).
+    Option<double> cpus = resources.get().cpus();
+    if (cpus.isSome()) {
+        uint64_t cpuShare =
+            std::max((uint64_t) (CPU_SHARES_PER_CPU *
+                    cpus.get()), MIN_CPU_SHARES);
+        argv.push_back("-c");
+        argv.push_back(stringify(cpuShare));
+    }
+
+    Option<Bytes> mem = resources.get().mem();
+    if (mem.isSome()) {
+        Bytes memLimit = std::max(mem.get(), MIN_MEMORY);
+        argv.push_back("-m");
+        argv.push_back(stringify(memLimit.bytes()));
+    }
+    }
+
+    if (env.isSome()) {
+    foreachpair (string key, string value, env.get()) {
+                argv.push_back("-e");
+                argv.push_back(key + "=" + value);
+                }
+    }
+
+    foreach (const Environment::Variable& variable,
+    commandInfo.environment().variables()) {
+    if (env.isSome() &&
+        env.get().find(variable.name()) != env.get().end()) {
+        // Skip to avoid duplicate environment variables.
+        continue;
+    }
+    argv.push_back("-e");
+    argv.push_back(variable.name() + "=" + variable.value());
+    }
+
+    argv.push_back("-e");
+    argv.push_back("MESOS_SANDBOX=" + mappedDirectory);
+    argv.push_back("-e");
+    argv.push_back("MESOS_CONTAINER_NAME=" + name);
+
+    foreach (const Volume& volume, containerInfo.volumes()) {
+    string volumeConfig = volume.container_path();
+    if (volume.has_host_path()) {
+        if (!strings::startsWith(volume.host_path(), "/")) {
+        // Support mapping relative paths from the sandbox.
+        volumeConfig =
+            path::join(sandboxDirectory, volume.host_path())
+            + ":" + volumeConfig;
+        } else {
+        volumeConfig = volume.host_path() + ":" + volumeConfig;
+        }
+        if (volume.has_mode()) {
+        switch (volume.mode()) {
+            case Volume::RW: volumeConfig += ":rw"; break;
+            case Volume::RO: volumeConfig += ":ro"; break;
+            default: return Failure("Unsupported volume mode");
+        }
+        }
+    } else if (volume.has_mode() && !volume.has_host_path()) {
+        return Failure("Host path is required with mode");
+    }
+
+    argv.push_back("-v");
+    argv.push_back(volumeConfig);
+    }
+
+    // Mapping sandbox directory into the container mapped directory.
+    argv.push_back("-v");
+    argv.push_back(sandboxDirectory + ":" + mappedDirectory);
+
+    const string& image = dockerInfo.image();
+
+    argv.push_back("--net");
+    string network;
+    switch (dockerInfo.network()) {
+    case ContainerInfo::DockerInfo::HOST: network = "host"; break;
+    case ContainerInfo::DockerInfo::BRIDGE: network = "bridge"; break;
+    case ContainerInfo::DockerInfo::NONE: network = "none"; break;
+    default: return Failure("Unsupported Network mode: " +
+                stringify(dockerInfo.network()));
+    }
+
+    argv.push_back(network);
+
+    if (containerInfo.has_hostname()) {
+    if (network == "host") {
+        return Failure("Unable to set hostname with host network mode");
+    }
+
+    argv.push_back("--hostname");
+    argv.push_back(containerInfo.hostname());
+    }
+
+    foreach (const Parameter& parameter, dockerInfo.parameters()) {
+    argv.push_back("--" + parameter.key() + "=" + parameter.value());
+    }
+
+    if (dockerInfo.port_mappings().size() > 0) {
+    if (network != "bridge") {
+        return Failure("Port mappings are only supported for bridge network");
+    }
+
+    if (!resources.isSome()) {
+        return Failure("Port mappings require resources");
+    }
+
+    Option<Value::Ranges> portRanges = resources.get().ports();
+
+    if (!portRanges.isSome()) {
+        return Failure("Port mappings require port resources");
+    }
+
+    foreach (const ContainerInfo::DockerInfo::PortMapping& mapping,
+    dockerInfo.port_mappings()) {
+        bool found = false;
+        foreach (const Value::Range& range, portRanges.get().range()) {
+        if (mapping.host_port() >= range.begin() &&
+            mapping.host_port() <= range.end()) {
+            found = true;
+            break;
+        }
+        }
+
+        if (!found) {
+        return Failure("Port [" + stringify(mapping.host_port()) + "] not " +
+                   "included in resources");
+        }
+
+        string portMapping = stringify(mapping.host_port()) + ":" +
+                 stringify(mapping.container_port());
+
+        if (mapping.has_protocol()) {
+        portMapping += "/" + strings::lower(mapping.protocol());
+        }
+
+        argv.push_back("-p");
+        argv.push_back(portMapping);
+    }
+    }
+
+    if (commandInfo.shell()) {
+    // We override the entrypoint if shell is enabled because we
+    // assume the user intends to run the command within /bin/sh
+    // and not the default entrypoint of the image. View MESOS-1770
+    // for more details.
+    argv.push_back("--entrypoint");
+    argv.push_back("/bin/sh");
+    }
+
+    argv.push_back("--name");
+    argv.push_back(name);
+    argv.push_back(image);
+
+    if (commandInfo.shell()) {
+    if (!commandInfo.has_value()) {
+        return Failure("Shell specified but no command value provided");
+    }
+
+    // Adding -c here because Docker cli only supports a single word
+    // for overriding entrypoint, so adding the -c flag for /bin/sh
+    // as part of the command.
+    argv.push_back("-c");
+    argv.push_back(commandInfo.value());
+    } else {
+    if (commandInfo.has_value()) {
+        argv.push_back(commandInfo.value());
+    }
+
+    foreach (const string& argument, commandInfo.arguments()) {
+        argv.push_back(argument);
+    }
+    }
+
+    string cmd = strings::join(" ", argv);
+
+    VLOG(1) << "Running " << cmd;
+
+    map<string, string> environment = os::environment();
+
+    // Currently the Docker CLI picks up dockerconfig by looking for
+    // the config file in the $HOME directory. If one of the URIs
+    // provided is a docker config file we want docker to be able to
+    // pick it up from the sandbox directory where we store all the
+    // URI downloads.
+    environment["HOME"] = sandboxDirectory;
+
+    Subprocess::IO stdoutIo = Subprocess::PIPE();
+    Subprocess::IO stderrIo = Subprocess::PIPE();
+    if (stdoutPath.isSome()) {
+    stdoutIo = Subprocess::PATH(stdoutPath.get());
+    }
+
+    if (stderrPath.isSome()) {
+    stderrIo = Subprocess::PATH(stderrPath.get());
+    }
+
+    Try<Subprocess> s = subprocess(
+        path,
+        argv,
+        Subprocess::PATH("/dev/null"),
+        stdoutIo,
+        stderrIo,
+        None(),
+        environment);
+
+    if (s.isError()) {
+    return Failure(s.error());
+    }
+
+    // We don't call checkError here to avoid printing the stderr
+    // of the docker container task as docker run with attach forwards
+    // the container's stderr to the client's stderr.
+    return s.get().status()
+        .then(lambda::bind(
+            &Docker::_run,
+            lambda::_1))
+        .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
 }
 
 Future<Nothing> Docker::run(
@@ -454,7 +785,7 @@ Future<Nothing> Docker::run(
     Option<double> cpus = resources.get().cpus();
     if (cpus.isSome()) {
       uint64_t cpuShare =
-        std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
+    std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
       argv.push_back("-c");
       argv.push_back(stringify(cpuShare));
     }
@@ -475,9 +806,9 @@ Future<Nothing> Docker::run(
   }
 
   foreach (const Environment::Variable& variable,
-           commandInfo.environment().variables()) {
+       commandInfo.environment().variables()) {
     if (env.isSome() &&
-        env.get().find(variable.name()) != env.get().end()) {
+    env.get().find(variable.name()) != env.get().end()) {
       // Skip to avoid duplicate environment variables.
       continue;
     }
@@ -494,18 +825,18 @@ Future<Nothing> Docker::run(
     string volumeConfig = volume.container_path();
     if (volume.has_host_path()) {
       if (!strings::startsWith(volume.host_path(), "/")) {
-        // Support mapping relative paths from the sandbox.
-        volumeConfig =
-          path::join(sandboxDirectory, volume.host_path()) + ":" + volumeConfig;
+    // Support mapping relative paths from the sandbox.
+    volumeConfig =
+      path::join(sandboxDirectory, volume.host_path()) + ":" + volumeConfig;
       } else {
-        volumeConfig = volume.host_path() + ":" + volumeConfig;
+    volumeConfig = volume.host_path() + ":" + volumeConfig;
       }
       if (volume.has_mode()) {
-        switch (volume.mode()) {
-          case Volume::RW: volumeConfig += ":rw"; break;
-          case Volume::RO: volumeConfig += ":ro"; break;
-          default: return Failure("Unsupported volume mode");
-        }
+    switch (volume.mode()) {
+      case Volume::RW: volumeConfig += ":rw"; break;
+      case Volume::RO: volumeConfig += ":ro"; break;
+      default: return Failure("Unsupported volume mode");
+    }
       }
     } else if (volume.has_mode() && !volume.has_host_path()) {
       return Failure("Host path is required with mode");
@@ -528,7 +859,7 @@ Future<Nothing> Docker::run(
     case ContainerInfo::DockerInfo::BRIDGE: network = "bridge"; break;
     case ContainerInfo::DockerInfo::NONE: network = "none"; break;
     default: return Failure("Unsupported Network mode: " +
-                            stringify(dockerInfo.network()));
+                stringify(dockerInfo.network()));
   }
 
   argv.push_back(network);
@@ -562,26 +893,26 @@ Future<Nothing> Docker::run(
     }
 
     foreach (const ContainerInfo::DockerInfo::PortMapping& mapping,
-             dockerInfo.port_mappings()) {
+         dockerInfo.port_mappings()) {
       bool found = false;
       foreach (const Value::Range& range, portRanges.get().range()) {
-        if (mapping.host_port() >= range.begin() &&
-            mapping.host_port() <= range.end()) {
-          found = true;
-          break;
-        }
+    if (mapping.host_port() >= range.begin() &&
+        mapping.host_port() <= range.end()) {
+      found = true;
+      break;
+    }
       }
 
       if (!found) {
-        return Failure("Port [" + stringify(mapping.host_port()) + "] not " +
-                       "included in resources");
+    return Failure("Port [" + stringify(mapping.host_port()) + "] not " +
+               "included in resources");
       }
 
       string portMapping = stringify(mapping.host_port()) + ":" +
-                           stringify(mapping.container_port());
+               stringify(mapping.container_port());
 
       if (mapping.has_protocol()) {
-        portMapping += "/" + strings::lower(mapping.protocol());
+    portMapping += "/" + strings::lower(mapping.protocol());
       }
 
       argv.push_back("-p");
@@ -663,8 +994,8 @@ Future<Nothing> Docker::run(
   // the container's stderr to the client's stderr.
   return s.get().status()
     .then(lambda::bind(
-        &Docker::_run,
-        lambda::_1))
+    &Docker::_run,
+    lambda::_1))
     .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
 }
 
@@ -689,11 +1020,11 @@ Future<Nothing> Docker::stop(
   int timeoutSecs = (int) timeout.secs();
   if (timeoutSecs < 0) {
     return Failure("A negative timeout can not be applied to docker stop: " +
-                   stringify(timeoutSecs));
+           stringify(timeoutSecs));
   }
 
   string cmd = path + " -H " + socket + " stop -t " + stringify(timeoutSecs) +
-               " " + containerName;
+           " " + containerName;
 
   VLOG(1) << "Running " << cmd;
 
@@ -709,12 +1040,12 @@ Future<Nothing> Docker::stop(
 
   return s.get().status()
     .then(lambda::bind(
-        &Docker::_stop,
-        *this,
-        containerName,
-        cmd,
-        s.get(),
-        remove));
+    &Docker::_stop,
+    *this,
+    containerName,
+    cmd,
+    s.get(),
+    remove));
 }
 
 Future<Nothing> Docker::_stop(
@@ -831,22 +1162,22 @@ void Docker::__inspect(
 
     if (retryInterval.isSome()) {
       VLOG(1) << "Retrying inspect with non-zero status code. cmd: '"
-              << cmd << "', interval: " << stringify(retryInterval.get());
+          << cmd << "', interval: " << stringify(retryInterval.get());
       Clock::timer(retryInterval.get(),
-                   [=]() { _inspect(cmd, promise, retryInterval); } );
+           [=]() { _inspect(cmd, promise, retryInterval); } );
       return;
     }
 
     CHECK_SOME(s.err());
     io::read(s.err().get())
       .then(lambda::bind(
-                failure<Nothing>,
-                cmd,
-                status.get(),
-                lambda::_1))
+        failure<Nothing>,
+        cmd,
+        status.get(),
+        lambda::_1))
       .onAny([=](const Future<Nothing>& future) {
-          CHECK_FAILED(future);
-          promise->fail(future.failure());
+      CHECK_FAILED(future);
+      promise->fail(future.failure());
       });
     return;
   }
@@ -886,9 +1217,9 @@ void Docker::___inspect(
 
   if (retryInterval.isSome() && !container.get().started) {
     VLOG(1) << "Retrying inspect since container not yet started. cmd: '"
-            << cmd << "', interval: " << stringify(retryInterval.get());
+        << cmd << "', interval: " << stringify(retryInterval.get());
     Clock::timer(retryInterval.get(),
-                 [=]() { _inspect(cmd, promise, retryInterval); } );
+         [=]() { _inspect(cmd, promise, retryInterval); } );
     return;
   }
 
@@ -941,10 +1272,10 @@ Future<list<Docker::Container>> Docker::_ps(
     CHECK_SOME(s.err());
     return io::read(s.err().get())
       .then(lambda::bind(
-                failure<list<Docker::Container>>,
-                cmd,
-                status.get(),
-                lambda::_1));
+        failure<list<Docker::Container>>,
+        cmd,
+        status.get(),
+        lambda::_1));
   }
 
   // Read to EOF.
@@ -991,20 +1322,20 @@ void Docker::inspectBatches(
   collect(batch).onAny([=](const Future<list<Docker::Container>>& c) {
     if (c.isReady()) {
       foreach (const Docker::Container& container, c.get()) {
-        containers->push_back(container);
+    containers->push_back(container);
       }
       if (lines->empty()) {
-        promise->set(*containers);
+    promise->set(*containers);
       }
       else {
-        inspectBatches(containers, lines, promise, docker, prefix);
+    inspectBatches(containers, lines, promise, docker, prefix);
       }
     } else {
       if (c.isFailed()) {
-        promise->fail("Docker ps batch failed " + c.failure());
+    promise->fail("Docker ps batch failed " + c.failure());
       }
       else {
-        promise->fail("Docker ps batch discarded");
+    promise->fail("Docker ps batch discarded");
       }
     }
   });
@@ -1093,14 +1424,14 @@ Future<Docker::Image> Docker::pull(
   // discarded.
   return s.get().status()
     .then(lambda::bind(
-        &Docker::_pull,
-        *this,
-        s.get(),
-        directory,
-        dockerImage,
-        path,
-        socket,
-        output));
+    &Docker::_pull,
+    *this,
+    s.get(),
+    directory,
+    dockerImage,
+    path,
+    socket,
+    output));
 }
 
 
@@ -1166,12 +1497,12 @@ Future<Docker::Image> Docker::__pull(
   // process.
   return s_.get().status()
     .then(lambda::bind(
-        &Docker::___pull,
-        docker,
-        s_.get(),
-        cmd,
-        directory,
-        image))
+    &Docker::___pull,
+    docker,
+    s_.get(),
+    cmd,
+    directory,
+    image))
     .onDiscard(lambda::bind(&commandDiscarded, s_.get(), cmd));
 }
 

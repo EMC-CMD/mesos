@@ -143,6 +143,31 @@ public:
       const std::string& containerName,
       const std::string& imageDir) const;
 
+
+// Performs 'docker restore --image-dir=imageDir CONTAINER'.
+    virtual process::Future<Nothing> commit(
+            const std::string& containerName,
+            const std::string& imageName) const;
+
+
+// Performs 'docker restore --image-dir=imageDir CONTAINER'.
+    virtual process::Future<Nothing> save(
+            const std::string& imageName,
+            const std::string& imageDir) const;
+
+// Performs 'docker create IMAGE'.
+//NOTE: containerInfo uses image-id specified in COMMIT
+virtual process::Future<Nothing> create_container(
+        const mesos::ContainerInfo& containerInfo,
+        const mesos::CommandInfo& commandInfo,
+        const std::string& containerName,
+        const std::string& sandboxDirectory,
+        const std::string& mappedDirectory,
+        const Option<mesos::Resources>& resources = None(),
+        const Option<std::map<std::string, std::string>>& env = None(),
+        const Option<std::string>& stdoutPath = None(),
+        const Option<std::string>& stderrPath = None()) const;
+
   // Performs 'docker rm (-f) CONTAINER'.
   virtual process::Future<Nothing> rm(
       const std::string& containerName,
